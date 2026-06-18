@@ -24,7 +24,22 @@ st.set_page_config(
 )
 
 # Demo student
-student_id = "STU001"
+# Student Selector
+student_ids = [
+    "STU001",
+    "STU002",
+    "STU003"
+]
+
+student_id = st.sidebar.selectbox("Select Student",student_ids)
+if "selected_student" not in st.session_state:
+    st.session_state.selected_student = student_id
+
+# Student changed
+if st.session_state.selected_student != student_id:
+    st.session_state.messages = []  # Clear chat history
+    st.session_state.selected_student = student_id
+    st.rerun()
 
 student_context = build_student_context(student_id)
 
@@ -75,7 +90,7 @@ if user_input:
 
             response = (
                 client.chat.completions.create(
-                    model="gpt-5.4-mini",
+                    model="gpt-5.4-mini-2026-03-17",
                     messages=messages,
                     temperature=0.4
                 )

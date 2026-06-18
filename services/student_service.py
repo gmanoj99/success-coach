@@ -1,85 +1,75 @@
 from services.sheets_service import get_worksheet
 from datetime import datetime
-
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-SPREADSHEET_ID = os.getenv(
-    "GOOGLE_SPREADSHEET_ID"
-)
-roster = get_worksheet(
+SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")
+# Load worksheets once
+roster_sheet = get_worksheet(
     SPREADSHEET_ID,
     "roster"
 )
 
-sheet = get_worksheet(
+scores_sheet = get_worksheet(
     SPREADSHEET_ID,
     "exam_scores"
 )
 
-sheet = get_worksheet(
+attendance_sheet = get_worksheet(
     SPREADSHEET_ID,
     "attendance"
 )
 
-sheet = get_worksheet(
+exams_sheet = get_worksheet(
     SPREADSHEET_ID,
     "exam_schedule"
 )
+
+
 def get_student_profile(student_id):
 
-    roster = get_worksheet("roster")
-
-    rows = roster.get_all_records()
+    rows = roster_sheet.get_all_records()
 
     for row in rows:
-        if row["student_id"] == student_id:
+        if str(row["student_id"]) == str(student_id):
             return row
 
     return None
 
+
 def get_student_scores(student_id):
 
-    sheet = get_worksheet("exam_scores")
-
-    rows = sheet.get_all_records()
+    rows = scores_sheet.get_all_records()
 
     return [
         row
         for row in rows
-        if row["student_id"] == student_id
+        if str(row["student_id"]) == str(student_id)
     ]
+
 
 def get_student_attendance(student_id):
 
-    sheet = get_worksheet("attendance")
+    rows = attendance_sheet.get_all_records()
 
-    rows = sheet.get_all_records()
-
-    records = [
+    return [
         row
         for row in rows
-        if row["student_id"] == student_id
+        if str(row["student_id"]) == str(student_id)
     ]
 
-    return records
 
 def get_student_exams(student_id):
 
-    sheet = get_worksheet("exam_schedule")
+    rows = exams_sheet.get_all_records()
 
-    rows = sheet.get_all_records()
-
-    exams = [
+    return [
         row
         for row in rows
-        if row["student_id"] == student_id
+        if str(row["student_id"]) == str(student_id)
     ]
-
-    return exams
-
 
 
 def build_student_context(student_id):
@@ -94,11 +84,9 @@ def build_student_context(student_id):
     exams = get_student_exams(student_id)
 
     context = []
-
     alerts = []
 
     # Student Details
-
     context.append(
         f"Student Name: {profile['name']}"
     )
@@ -112,12 +100,13 @@ def build_student_context(student_id):
     )
 
     # Attendance
-
     if attendance_records:
 
         latest = attendance_records[-1]
 
-        attendance_pct = latest["attendance_pct"]
+        attendance_pct = float(
+            latest["attendance_pct"]
+        )
 
         context.append(
             f"Attendance Percentage: {attendance_pct}%"
@@ -129,14 +118,13 @@ def build_student_context(student_id):
             )
 
     # Scores
-
     context.append("\nSubject Scores:")
 
     for score in scores:
 
         percentage = (
-            score["score"] /
-            score["max_score"]
+            float(score["score"]) /
+            float(score["max_score"])
         ) * 100
 
         context.append(
@@ -152,7 +140,6 @@ def build_student_context(student_id):
             )
 
     # Upcoming Exams
-
     context.append("\nUpcoming Exams:")
 
     today = datetime.today()
@@ -176,7 +163,7 @@ def build_student_context(student_id):
                 exam_date - today
             ).days
 
-            if days_left <= 7:
+            if 0 <= days_left <= 7:
                 alerts.append(
                     f"{exam['subject']} exam is in "
                     f"{days_left} days."
@@ -186,20 +173,19 @@ def build_student_context(student_id):
             pass
 
     # Alerts
+    # context.append("\nAlerts:")
 
-    context.append("\nAlerts:")
+    # if alerts:
 
-    if alerts:
+    #     for alert in alerts:
+    #         context.append(
+    #             f"- {alert}"
+    #         )
 
-        for alert in alerts:
-            context.append(
-                f"- {alert}"
-            )
+    # else:
 
-    else:
-
-        context.append(
-            "- No alerts."
-        )
+    #     context.append(
+    #         "- No alerts."
+    #     )
 
     return "\n".join(context)
