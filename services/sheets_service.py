@@ -12,7 +12,7 @@ SCOPES = [
 def get_client():
 
     service_account_info = dict(
-        st.secrets["GOOGLE_SERVICE_ACCOUNT"]
+        st.secrets["[gcp_service_account]"]
     )
 
     creds = Credentials.from_service_account_info(
