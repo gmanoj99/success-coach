@@ -3,9 +3,10 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 from pydantic import BaseModel
+import streamlit as st
 load_dotenv()
 
-SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")
+SPREADSHEET_ID = st.secrets["GOOGLE_SPREADSHEET_ID"]
 # Load worksheets once
 roster_sheet = get_worksheet(
     SPREADSHEET_ID,
