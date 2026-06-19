@@ -2,7 +2,9 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from agents.coach_graph import run_coach
-
+from services.memory_service import (
+    save_session_memory
+)
 load_dotenv()
 
 st.set_page_config(
@@ -103,3 +105,40 @@ if user_input:
             "content": answer
         }
     )
+st.divider()
+
+if st.button("End Session"):
+    if not st.session_state.messages:
+        st.warning("No conversation to save.")
+    else:
+        result = save_session_memory(
+            student_id,
+            st.session_state.messages
+        )
+        st.success(
+            "Session memory saved successfully!"
+        )
+
+        st.subheader(
+            "Session Summary"
+        )
+
+        st.write(
+            result["summary"]
+        )
+
+        st.subheader(
+            "Key Facts"
+        )
+
+        facts = result["facts"].split("\n")
+
+        for fact in facts:
+
+            fact = fact.strip()
+
+            if fact:
+
+                st.write(
+                    f"• {fact}"
+                )
