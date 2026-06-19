@@ -1,6 +1,5 @@
 # Environment variables
 .env
-
 # Google credentials
 credentials.json
 token.json
@@ -20,3 +19,7 @@ __pycache__/
 
 # OS files
 .DS_Store
+
+data/chroma/
+
+.streamlit/

@@ -28,9 +28,7 @@ exams_sheet = get_worksheet(
     "exam_schedule"
 )
 
-class RouterDecision(BaseModel):
-    needs_student_data: bool
-    reason: str
+
 
 def get_student_profile(student_id):
 

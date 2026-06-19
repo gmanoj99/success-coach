@@ -1,10 +1,13 @@
-from typing import TypedDict, Annotated
-from langgraph.graph.message import add_messages
+from typing import TypedDict
+
 
 class CoachState(TypedDict):
+
     question: str
     student_id: str
-    chat_history: list[dict]
-    needs_student_data: bool
+    chat_history: list
+    route: str
     student_context: str
+    kb_context: str
+    retrieved_chunks: list
     answer: str

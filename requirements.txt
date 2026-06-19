@@ -6,3 +6,5 @@ google-auth
 langgraph
 langchain-openai
 langchain-core
+chromadb
+langchain-text-splitters

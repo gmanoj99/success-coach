@@ -85,11 +85,10 @@ if user_input:
 
             try:
 
-                answer = run_coach(
-                    question=user_input,
-                    student_id=student_id,
-                    chat_history=st.session_state.messages
-                )
+                answer, route = run_coach(
+                           question=user_input,
+                           student_id=student_id,
+                          chat_history=st.session_state.messages)
 
             except Exception as e:
 
