@@ -4,6 +4,7 @@
 # Google credentials
 credentials.json
 token.json
+service_account.json
 
 # Python virtual environment
 .venv/
