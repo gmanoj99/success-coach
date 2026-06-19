@@ -6,5 +6,6 @@ google-auth
 langgraph
 langchain-openai
 langchain-core
-chromadb
+chromadb==1.5.9
+protobuf==5.29.5
 langchain-text-splitters
