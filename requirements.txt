@@ -3,3 +3,6 @@ streamlit
 python-dotenv
 gspread
 google-auth
+langgraph
+langchain-openai
+langchain-core

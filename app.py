@@ -1,68 +1,73 @@
 import streamlit as st
 from dotenv import load_dotenv
-from openai import OpenAI
-import os
 
-from services.student_service import (
-    build_student_context
-)
-
-from prompts.system_prompt import (
-    build_system_prompt
-)
+from agents.coach_graph import run_coach
 
 load_dotenv()
 
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
-)
-
 st.set_page_config(
-    page_title="Student AI Assistant",
+    page_title="Student Success Coach",
     page_icon="🎓",
     layout="wide"
 )
 
-# Demo student
-# Student Selector
-student_ids = [
-    "STU001",
-    "STU002",
-    "STU003"
-]
+st.title("🎓 Student Success Coach")
 
-student_id = st.sidebar.selectbox("Select Student",student_ids)
-if "selected_student" not in st.session_state:
-    st.session_state.selected_student = student_id
+# ----------------------------------
+# Student Selection
+# ----------------------------------
 
-# Student changed
-if st.session_state.selected_student != student_id:
-    st.session_state.messages = []  # Clear chat history
-    st.session_state.selected_student = student_id
-    st.rerun()
+student_options = {
+    "Student 1": "STU001",
+    "Student 2": "STU002",
+    "Student 3": "STU003"
+}
 
-student_context = build_student_context(student_id)
+selected_student = st.sidebar.selectbox(
+    "Select Student",
+    list(student_options.keys())
+)
 
-system_prompt = build_system_prompt(student_context)
+student_id = student_options[selected_student]
+
+# ----------------------------------
+# Reset chat when student changes
+# ----------------------------------
+
+if (
+    "current_student" not in st.session_state
+    or st.session_state.current_student != student_id
+):
+    st.session_state.current_student = student_id
+    st.session_state.messages = []
+
+# ----------------------------------
+# Initialize chat history
+# ----------------------------------
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-st.title("🎓 Student Success Coach")
-
-st.caption(
-    "Ask academic or personal growth questions."
-)
+# ----------------------------------
+# Display previous messages
+# ----------------------------------
 
 for message in st.session_state.messages:
 
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-user_input = st.chat_input( "Ask your question...")
+# ----------------------------------
+# User Input
+# ----------------------------------
+
+user_input = st.chat_input(
+    "Ask your question..."
+)
 
 if user_input:
 
+    # Store user message
     st.session_state.messages.append(
         {
             "role": "user",
@@ -73,32 +78,26 @@ if user_input:
     with st.chat_message("user"):
         st.markdown(user_input)
 
-    messages = [
-        {
-            "role": "system",
-            "content": system_prompt
-        }
-    ]
-
-    messages.extend(
-        st.session_state.messages
-    )
-
-    with st.chat_message( "assistant"):
+    # Generate answer
+    with st.chat_message("assistant"):
 
         with st.spinner("Thinking..."):
 
-            response = (
-                client.chat.completions.create(
-                    model="gpt-5.4-mini-2026-03-17",
-                    messages=messages,
-                    temperature=0.4
-                )
-            )
+            try:
 
-            answer = (response.choices[0].message.content)
+                answer = run_coach(
+                    question=user_input,
+                    student_id=student_id,
+                    chat_history=st.session_state.messages
+                )
+
+            except Exception as e:
+
+                answer = f"Error: {str(e)}"
+
             st.markdown(answer)
 
+    # Store assistant answer
     st.session_state.messages.append(
         {
             "role": "assistant",

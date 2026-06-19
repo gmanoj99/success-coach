@@ -2,7 +2,7 @@ from services.sheets_service import get_worksheet
 from datetime import datetime
 import os
 from dotenv import load_dotenv
-
+from pydantic import BaseModel
 load_dotenv()
 
 SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")
@@ -27,6 +27,9 @@ exams_sheet = get_worksheet(
     "exam_schedule"
 )
 
+class RouterDecision(BaseModel):
+    needs_student_data: bool
+    reason: str
 
 def get_student_profile(student_id):
 
