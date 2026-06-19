@@ -1,16 +1,22 @@
+import json
+import streamlit as st
 import gspread
+
 from google.oauth2.service_account import Credentials
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets.readonly"
 ]
 
-SERVICE_ACCOUNT_FILE = "service_account.json"
-
 
 def get_client():
-    creds = Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE,
+
+    service_account_info = dict(
+        st.secrets["GOOGLE_SERVICE_ACCOUNT"]
+    )
+
+    creds = Credentials.from_service_account_info(
+        service_account_info,
         scopes=SCOPES
     )
 
