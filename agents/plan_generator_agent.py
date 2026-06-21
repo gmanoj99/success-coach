@@ -35,6 +35,9 @@ DEFAULT_TIME_SLOTS = [
     ("15:00", "15:30"), ("15:30", "16:00"), ("16:00", "16:30"), ("16:30", "17:00"),
 ]
 
+WORKDAY_START = "09:00"
+WORKDAY_END = "18:00"
+
 
 def _get_scheduling_slots(target_date: date) -> List[Tuple[str, str]]:
     """Use calendar slots when available; fall back to default working hours."""
@@ -159,6 +162,8 @@ def generate_daily_plan(
     
     used_slots = set()
     scheduled_signals = {}
+    tradeoff_warnings = []
+    critical_unassigned = []
     
     # Schedule signals in priority order
     for idx, signal in enumerate(ranked_signals, 1):
@@ -190,6 +195,7 @@ def generate_daily_plan(
                     priority_rank=len(plan.scheduled_sessions) + 1,
                     time_slot=f"{slot_start}-{slot_end}",
                     is_booked=False,
+                    source_signal_ids=[signal.signal_id],
                 )
                 
                 plan.scheduled_sessions.append(session)
@@ -201,6 +207,9 @@ def generate_daily_plan(
                 break
         
         if not slot_found:
+            if signal.severity == Severity.CRITICAL:
+                critical_unassigned.append(signal)
+
             # Defer student to tomorrow
             deferred = DeferredStudent(
                 student_id=signal.student_id,
@@ -211,9 +220,28 @@ def generate_daily_plan(
             )
             plan.deferred_students.append(deferred)
             print(f"   ⏸️  {student_name}: DEFERRED (no slots)")
+
+    if critical_unassigned:
+        plan.metadata['tradeoff_required'] = True
+        plan.metadata['tradeoff_message'] = (
+            f"{len(critical_unassigned)} critical concern(s) could not be scheduled in today's capacity. "
+            "Coach review required before choosing which critical case to prioritize."
+        )
+        plan.metadata['tradeoff_candidates'] = [
+            {
+                'signal_id': signal.signal_id,
+                'student_id': signal.student_id,
+                'description': signal.description,
+                'severity': signal.severity.value,
+                'urgency': signal.urgency.value,
+            }
+            for signal in critical_unassigned
+        ]
     
     # Update metadata
     plan.update_metadata()
+    if tradeoff_warnings:
+        plan.metadata['warnings'] = tradeoff_warnings
     
     return plan
 
@@ -274,6 +302,67 @@ def auto_book_calendar_events(plan: DailyPlan) -> DailyPlan:
         print(f"⏸️  Deferred {session.student_name} due to booking conflict")
     
     return plan
+
+
+def merge_plan_with_new_signals(
+    existing_plan: Optional[DailyPlan],
+    incoming_signals: List[Signal],
+    target_date: date = None,
+    max_slots_available: int = 8,
+) -> tuple[DailyPlan, dict]:
+    """
+    Rebuild the plan when a serious concern arrives.
+
+    If there is enough room, the updated plan is returned directly.
+    If multiple critical signals compete for limited capacity, the plan
+    includes a tradeoff summary and leaves the final call to the coach.
+    """
+    if target_date is None:
+        target_date = date.today()
+
+    current_signals = incoming_signals[:]
+    if existing_plan:
+        # Preserve the context of the current plan by carrying forward the
+        # reasons already scheduled, so the coach sees what changed.
+        current_signals.extend([])
+
+    rebuilt_plan = generate_daily_plan(
+        target_date=target_date,
+        signals=current_signals,
+        max_slots_available=max_slots_available,
+    )
+
+    critical_count = sum(1 for signal in current_signals if signal.severity == Severity.CRITICAL)
+    available_capacity = len(_get_scheduling_slots(target_date))
+    tradeoff_needed = critical_count > 1 and available_capacity <= 1
+
+    summary = {
+        'tradeoff_required': tradeoff_needed,
+        'changed': len(rebuilt_plan.scheduled_sessions),
+        'scheduled': [
+            {
+                'student_id': session.student_id,
+                'student_name': session.student_name,
+                'time_slot': session.time_slot,
+                'reason': session.reason,
+                'source_signal_ids': session.source_signal_ids,
+            }
+            for session in rebuilt_plan.scheduled_sessions
+        ],
+        'deferred': [
+            {
+                'student_id': deferred.student_id,
+                'student_name': deferred.student_name,
+                'reason': deferred.reason,
+                'severity_level': deferred.severity_level,
+                'deferred_to': str(deferred.deferred_to),
+            }
+            for deferred in rebuilt_plan.deferred_students
+        ],
+        'message': rebuilt_plan.metadata.get('tradeoff_message', 'Daily plan updated.'),
+    }
+
+    return rebuilt_plan, summary
 
 
 def revise_plan_for_urgent_signal(

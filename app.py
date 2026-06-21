@@ -20,11 +20,17 @@ from agents.plan_generator_agent import (
     auto_book_calendar_events,
     build_plan_summary,
     rank_signals,
+    merge_plan_with_new_signals,
 )
 from models.signal import Signal
 from datetime import date
 from agents.session_analyzer import analyze_full_session
 from services.sheets_service import append_signal
+from services.plan_export_service import (
+    save_plan_as_markdown,
+    save_plan_update_summary,
+    load_latest_plan_update_summary,
+)
 load_dotenv()
 
 st.set_page_config(
@@ -228,6 +234,54 @@ if st.session_state.view == "student":
                     except Exception as e:
                         print(f"   ERROR: {e}")
                         st.error(f"Error saving signal: {e}")
+
+                serious_signals = [
+                    signal for signal in signals
+                    if signal.severity in {signal.severity.__class__.HIGH, signal.severity.__class__.CRITICAL}
+                    or signal.urgency.value in {"urgent", "today"}
+                ]
+
+                if serious_signals:
+                    st.subheader("🔄 Plan Update")
+
+                    existing_plan = st.session_state.get("daily_plan")
+                    if existing_plan:
+                        updated_plan, summary = merge_plan_with_new_signals(
+                            existing_plan=existing_plan,
+                            incoming_signals=signals,
+                            target_date=date.today(),
+                            max_slots_available=8,
+                        )
+                    else:
+                        updated_plan, summary = merge_plan_with_new_signals(
+                            existing_plan=None,
+                            incoming_signals=signals,
+                            target_date=date.today(),
+                            max_slots_available=8,
+                        )
+
+                    plan_path = save_plan_as_markdown(updated_plan)
+                    summary_path = save_plan_update_summary(summary, updated_plan)
+
+                    st.session_state.daily_plan = updated_plan
+                    st.session_state.latest_plan_update_summary = load_latest_plan_update_summary()
+                    st.session_state.plan_update_paths = {
+                        "plan": plan_path,
+                        "summary": summary_path,
+                    }
+
+                    if summary.get("tradeoff_required"):
+                        st.warning(
+                            "⚠️ A serious-plan tradeoff needs your call: "
+                            f"{summary.get('message', 'Coach review required.')}"
+                        )
+                    else:
+                        st.info("✅ Daily plan updated automatically from the new serious concern.")
+                        if summary.get("scheduled"):
+                            for item in summary["scheduled"]:
+                                st.write(
+                                    f"• {item['student_name']} -> {item['time_slot']} because {item['reason']}"
+                                )
             elif not signals:
                 st.success("✅ Session completed. No concerning signals detected.")
             else:
@@ -250,6 +304,12 @@ if st.session_state.view == "student":
 elif st.session_state.view == "coach":
     
     st.subheader("👨‍💼 Coach Dashboard")
+
+    latest_summary = load_latest_plan_update_summary()
+    if latest_summary:
+        with st.container(border=True):
+            st.write("### Recent Plan Change Summary")
+            st.markdown(latest_summary)
     
     # Try to get spreadsheet ID
     spreadsheet_id = st.secrets.get("GOOGLE_SPREADSHEET_ID")
@@ -356,6 +416,9 @@ elif st.session_state.view == "coach":
                         
                         # Auto-book calendar events
                         plan = auto_book_calendar_events(plan)
+
+                        if plan.metadata.get("tradeoff_required"):
+                            st.warning(plan.metadata.get("tradeoff_message", "Coach review required."))
                         
                         # Save plan as markdown
                         import os
@@ -379,6 +442,10 @@ elif st.session_state.view == "coach":
                                 f.write("## ⏸️ Deferred\n\n")
                                 for d in plan.deferred_students:
                                     f.write(f"- {d.student_name} ({d.severity_level})\n")
+
+                            if plan.metadata.get("tradeoff_required"):
+                                f.write("\n## Tradeoff Required\n\n")
+                                f.write(f"{plan.metadata.get('tradeoff_message', 'Coach review required.')}\n")
                         
                         # Mark only the signals that were actually scheduled as resolved.
                         # Deferred items stay in alerts so the coach can act on them later.

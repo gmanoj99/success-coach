@@ -9,7 +9,8 @@ from os import getenv
 CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 # Your shared calendar ID
-COACH_CALENDAR_ID = st.secrets["CALENDAR_ID"]  # ← this should be the shared calendar ID, not coach email
+COACH_CALENDAR_ID = "235f02d5741773b036a5114a413832ea15993ddffdfd6a895084de616a7a005a@group.calendar.google.com"
+# ← this should be the shared calendar ID, not coach email
 print(f"Using shared calendar ID: {COACH_CALENDAR_ID}")
 def get_calendar_service():
     try:

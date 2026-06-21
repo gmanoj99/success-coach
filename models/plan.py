@@ -40,6 +40,7 @@ class ScheduledSession:
     time_slot: Optional[str] = None
     is_booked: bool = False
     calendar_event_id: Optional[str] = None
+    source_signal_ids: List[str] = field(default_factory=list)
 
     def to_dict(self):
         """Convert to dictionary for storage"""
@@ -52,6 +53,7 @@ class ScheduledSession:
         """Create from dictionary"""
         data = data.copy()
         data['session_type'] = SessionType(data['session_type'])
+        data['source_signal_ids'] = data.get('source_signal_ids', []) or []
         return cls(**data)
 
 
