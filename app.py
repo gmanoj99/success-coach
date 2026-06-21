@@ -3,8 +3,10 @@ from dotenv import load_dotenv
 
 from agents.coach_graph import run_coach
 from services.memory_service import (
-    save_session_memory
+    save_session_memory,
+    get_session_count
 )
+
 load_dotenv()
 
 st.set_page_config(
@@ -32,6 +34,12 @@ selected_student = st.sidebar.selectbox(
 
 student_id = student_options[selected_student]
 
+# Display session count (with refresh on each page load)
+session_count = get_session_count(student_id)
+print(f"\n📊 UI DISPLAY: Session count for {student_id} = {session_count}")
+print(f"   Displaying: Session #{session_count + 1}")
+st.sidebar.info(f"📊 Session #{session_count + 1}")
+
 # ----------------------------------
 # Reset chat when student changes
 # ----------------------------------
@@ -55,7 +63,6 @@ if "messages" not in st.session_state:
 # ----------------------------------
 
 for message in st.session_state.messages:
-
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
@@ -88,9 +95,10 @@ if user_input:
             try:
 
                 answer, route = run_coach(
-                           question=user_input,
-                           student_id=student_id,
-                          chat_history=st.session_state.messages)
+                    question=user_input,
+                    student_id=student_id,
+                    chat_history=st.session_state.messages
+                )
 
             except Exception as e:
 
@@ -105,6 +113,7 @@ if user_input:
             "content": answer
         }
     )
+
 st.divider()
 
 if st.button("End Session"):
@@ -116,29 +125,24 @@ if st.button("End Session"):
             st.session_state.messages
         )
         st.success(
-            "Session memory saved successfully!"
+            f"✅ Session #{result['session_number']} saved successfully!"
         )
 
-        st.subheader(
-            "Session Summary"
-        )
+        st.subheader("📝 Session Summary")
+        st.write(result["summary"])
 
-        st.write(
-            result["summary"]
-        )
-
-        st.subheader(
-            "Key Facts"
-        )
-
+        st.subheader("💡 Key Facts")
         facts = result["facts"].split("\n")
-
         for fact in facts:
-
             fact = fact.strip()
-
             if fact:
-
-                st.write(
-                    f"• {fact}"
-                )
+                st.write(f"• {fact}")
+        
+        # Clear messages for next session and rerun to refresh session count
+        st.session_state.messages = []
+        print(f"\n{'='*70}")
+        print(f"✅ SESSION SAVED - CLEARING FOR NEXT SESSION")
+        print(f"   Session Number: {result['session_number']}")
+        print(f"   Messages cleared: ready for next session")
+        print(f"{'='*70}\n")
+        st.rerun()

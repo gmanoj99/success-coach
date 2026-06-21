@@ -11,3 +11,8 @@ class CoachState(TypedDict):
     kb_context: str
     retrieved_chunks: list
     answer: str
+    # New fields for memory management
+    memory_context: str
+    session_count: int
+    factual_memory: str
+    session_history: str
