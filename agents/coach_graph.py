@@ -33,6 +33,17 @@ from services.rag_service import (
     format_kb_context
 )
 
+from services.signal_detector_service import (
+    generate_session_signal,
+    get_data_driven_signals
+)
+
+from services.sheets_service import (
+    append_signal
+)
+
+import streamlit as st
+
 
 # -------------------
 # ROUTER
@@ -325,6 +336,45 @@ INSTRUCTIONS:
 
 
 # -------------------
+# SIGNAL DETECTION
+# -------------------
+
+def detect_session_signals(state):
+    """
+    After response generation, analyze the session for concerning signals.
+    Stores signal in Google Sheets if one is detected.
+    """
+    print(f"\n🚨 ANALYZING SESSION FOR SIGNALS...")
+    
+    # Generate session-based signal from conversation
+    session_signal = generate_session_signal(
+        student_id=state["student_id"],
+        chat_history=state["chat_history"],
+        student_context=state.get("student_context", "")
+    )
+    
+    if session_signal:
+        print(f"   ✅ Session signal detected: {session_signal.signal_type.value}")
+        print(f"      Description: {session_signal.description}")
+        
+        # Append to Google Sheets
+        try:
+            spreadsheet_id = st.secrets.get("GOOGLE_SPREADSHEET_ID")
+            if spreadsheet_id:
+                append_signal(spreadsheet_id, session_signal.to_dict())
+                print(f"   ✅ Signal saved to Sheets")
+        except Exception as e:
+            print(f"   ⚠️  Could not save signal to Sheets: {e}")
+    else:
+        print(f"   ℹ️  No concerning signals detected in session")
+        session_signal = None
+    
+    return {
+        "session_signal": session_signal
+    }
+
+
+# -------------------
 # ROUTING HELPERS
 # -------------------
 
@@ -358,6 +408,7 @@ graph.add_node("answer_generic", answer_generic)
 graph.add_node("answer_student", answer_student)
 graph.add_node("answer_kb", answer_kb)
 graph.add_node("answer_student_and_kb", answer_student_and_kb)
+graph.add_node("detect_signals", detect_session_signals)
 
 # Define flow
 graph.add_edge(START, "load_memory")
@@ -395,11 +446,12 @@ graph.add_conditional_edges(
     }
 )
 
-# End edges
-graph.add_edge("answer_generic", END)
-graph.add_edge("answer_student", END)
-graph.add_edge("answer_kb", END)
-graph.add_edge("answer_student_and_kb", END)
+# End edges - route through signal detection first
+graph.add_edge("answer_generic", "detect_signals")
+graph.add_edge("answer_student", "detect_signals")
+graph.add_edge("answer_kb", "detect_signals")
+graph.add_edge("answer_student_and_kb", "detect_signals")
+graph.add_edge("detect_signals", END)
 
 # Compile
 coach_app = graph.compile()
@@ -411,7 +463,8 @@ coach_app = graph.compile()
 
 def run_coach(question, student_id, chat_history):
     """
-    Run the coach graph with memory awareness.
+    Run the coach graph with signal detection.
+    Returns answer, route, and any detected signal.
     """
     result = coach_app.invoke(
         {
@@ -424,5 +477,6 @@ def run_coach(question, student_id, chat_history):
 
     return (
         result["answer"],
-        result["route"]
+        result["route"],
+        result.get("session_signal")
     )

@@ -59,3 +59,37 @@ def classify_route(
     )
 
     return response.choices[0].message.parsed
+
+
+def call_llm(
+    prompt: str,
+    system_context: str = "You are a helpful assistant.",
+    temperature: float = 0.4
+) -> str:
+    """
+    Generic LLM call for prompt completion
+    
+    Args:
+        prompt: User prompt/question
+        system_context: System prompt context
+        temperature: Creativity/randomness level
+    
+    Returns:
+        LLM response text
+    """
+    response = client.chat.completions.create(
+        model="gpt-5.4-mini-2026-03-17",
+        messages=[
+            {
+                "role": "system",
+                "content": system_context
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        temperature=temperature
+    )
+    
+    return response.choices[0].message.content

@@ -3,6 +3,9 @@ streamlit
 python-dotenv
 gspread
 google-auth
+google-auth-httplib2
+google-auth-oauthlib
+google-api-python-client
 langgraph
 langchain-openai
 langchain-core
@@ -10,3 +13,4 @@ chromadb==1.5.9
 protobuf==5.29.5
 langchain-text-splitters
 mem0ai
+pytz
