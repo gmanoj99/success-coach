@@ -31,6 +31,8 @@ from services.plan_export_service import (
     save_plan_update_summary,
     load_latest_plan_update_summary,
 )
+from services.briefing_service import generate_pre_meeting_brief
+from types import SimpleNamespace
 load_dotenv()
 
 st.set_page_config(
@@ -302,7 +304,34 @@ if st.session_state.view == "student":
 # ----------------------------------
 
 elif st.session_state.view == "coach":
-    
+    # ---- Coach: quick student brief (sidebar) ----
+    student_options = {
+        "Student 1": "STU001",
+        "Student 2": "STU002",
+        "Student 3": "STU003"
+    }
+    selected_student_for_brief = st.sidebar.selectbox(
+        "Select Student for Brief",
+        list(student_options.keys()),
+        key="coach_brief_student"
+    )
+    selected_student_id = student_options[selected_student_for_brief]
+    if st.sidebar.button("📋 Get Brief", key="get_brief_btn"):
+        scheduled = SimpleNamespace(
+            student_id=selected_student_id,
+            trigger_signal_type=None,
+            trigger_signal_description=None,
+            trigger_signal_action=None,
+            source_signal_ids=[]
+        )
+        with st.spinner("Generating brief..."):
+            try:
+                brief_text = generate_pre_meeting_brief(scheduled)
+                st.subheader("Pre-meeting Brief")
+                st.write(brief_text)
+            except Exception as e:
+                st.error(f"Error generating brief: {e}")
+
     st.subheader("👨‍💼 Coach Dashboard")
 
     latest_summary = load_latest_plan_update_summary()
